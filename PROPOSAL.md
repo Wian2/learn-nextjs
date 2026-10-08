@@ -1,32 +1,89 @@
-Community Library Dashboard
+Family Clinic Dashboard
 
-Deployed base: https://nextjs-dashboard-chi-flax-58.vercel.app/
-Repo: https://github.com/Wian2/learn-nextjs
+Deployed base: https://nextjs-dashboard-chi-flax-58.vercel.app/ 
+Repository: https://github.com/Wian2/learn-nextjs 
 Student: Wian Brits
 
+
+
 1. Domain
+The Family Clinic Dashboard is a small dashboard for a family practice with one owner and two front-desk staff.
 
-A small community library that manages its book collection, registered members, and book loans.
+The owner uses the dashboard each Monday to:
 
-The librarian uses the dashboard each week to decide which books should be purchased or replaced and whether members are returning books on time. Library assistants use it to manage members and record loans and returns.
+decide whether the practice needs an additional consulting day; and
+monitor missed appointments and decide whether reminder messages may be needed.
+The application will use authenticated users and Supabase Row Level Security (RLS) to ensure that users can only access the records they are authorised to see or change.
 
-2. Entities (exactly three)
-Entity	Replaces	Fields (name: type)
-books	customers	id: uuid, user_id: uuid, title: text, author: text, isbn: text, genre: text, published_year: integer, created_at: timestamp
-borrowings	invoices	id: uuid, user_id: uuid, book_id: uuid (fk to books), member_id: uuid (fk to members), borrowed_at: timestamp, due_at: timestamp, returned_at: timestamp, status: enum(borrowed, returned, overdue), created_at: timestamp
-members	revenue	id: uuid, user_id: uuid, full_name: text, email: text, phone: text, membership_type: enum(standard, student), joined_at: timestamp, created_at: timestamp
-3. Charts (exactly two)
-#	Question it answers	Who acts on the answer	Chart type	Data it needs
-1	Is the library's collection growing? How many new books were added each month over the last 6 months?	librarian decides whether more books need to be purchased	bar, one bar per month	count of books by month of created_at, last 6 months
-2	Which books are most in demand? Which books have been borrowed most often this month?	librarian decides which popular books need additional copies	horizontal bar, one bar per book	borrowings this month grouped by book_id and joined to books for the title
+
+
+2. Entities
+The application will contain exactly three entities.
+
+Entity          Replaces	Fields
+patients	    customers	id: uuid, user_id: uuid, full_name: text, phone: text, date_of_birth: date, created_at: timestamptz
+appointments	invoices	id: uuid, user_id: uuid, patient_id: uuid (FK to patients), starts_at: timestamptz, status: enum(booked, done, no_show), created_at: timestamptz
+treatments	    revenue	    id: uuid, user_id: uuid, appointment_id: uuid (FK to appointments), procedure: text, fee_cents: integer, created_at: timestamptz
+
+
+Entity relationships
+
+The entities form a simple parent-child structure:
+
+patients
+   │
+   └── appointments
+          │
+          └── treatments
+
+patients is the parent entity, so it will be built first.
+
+Each capstone entity includes:
+
+id — the row's unique identifier;
+user_id — the authenticated user who owns the row; and
+created_at — when the row was created.
+
+
+
+3. Charts
+The dashboard will contain exactly two charts.
+
+#   Question it answers	                                                Who acts on the answer	                                    Chart type	                    Data needed
+1	Is the practice growing? How many new patients joined each month?	The owner decides whether to open a second consulting day.	Bar chart — one bar per month	Count of patients by created_at, covering the last 6 months.
+2	What share of this month's appointments are no-shows?	            The owner decides whether reminder messages may be needed.	Donut chart                     This month's appointments, joined to patients and counted by status.
+
+
+Build order
+Chart 1 can be answered using the patients table alone.
+
+Therefore:
+
+patients is the first entity to build.
+
+
+
 4. Roles
-Role	Can see	Can change
-librarian	all books, members and borrowings	create, edit and delete books; create, edit and delete members; create and edit borrowings
-library assistant	books, members and borrowings	create and edit members; create and edit borrowings; no deleting books or members
+The application has two roles.
+
+Role	    Can see	                    Can change
+Owner	    Everything	                Everything
+Front desk	Patients and appointments	Create and edit patients and appointments; cannot delete records or modify treatments
+
+These role definitions will eventually be reflected in the application's authorisation and Supabase RLS policies.
+
+For the first RLS implementation, the baseline rule is that an authenticated user can access only rows where user_id matches their authenticated user ID.
+
+
+
 5. Stretch
+A "Tomorrow" page showing booked appointments for the following day, including each patient's phone number.
 
-A realtime dashboard notification showing when a book is returned, so library staff can see immediately when it becomes available for the next member.
+6. Out of Scope
+The following features are intentionally excluded from the project:
 
-6. Out of scope
-
-Online member registration, online book reservations, payment processing, book reviews or ratings, multiple library branches, automatic email/SMS reminders, and a mobile app.
+Online booking by patients
+Sending messages or reminders
+Medical aid claims
+Support for more than one practice
+A mobile application
