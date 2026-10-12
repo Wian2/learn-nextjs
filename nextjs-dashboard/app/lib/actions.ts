@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import postgres from 'postgres';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
+import { createClient } from '@/lib/supabase/server';
  
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
  
@@ -132,3 +133,60 @@ export async function authenticate(
   }
 }
 
+export async function signInWithSupabase(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  const supabase = await createClient();
+
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+
+  if (!email || !password) {
+    return 'Please enter your email and password.';
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    console.error('Supabase sign-in error:', error);
+    return 'Invalid email or password.';
+  }
+
+  redirect('/dashboard');
+}
+
+export async function signUpWithSupabase(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  const supabase = await createClient();
+
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+
+  if (!email || !password) {
+    return 'Please enter an email and password.';
+  }
+
+  if (password.length < 6) {
+    return 'Password must be at least 6 characters.';
+  }
+
+  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    console.error('Supabase sign-up error:', error);
+    return error.message;
+  }
+
+  redirect('/login');
+}
