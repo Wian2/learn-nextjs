@@ -179,14 +179,23 @@ export async function signUpWithSupabase(
   console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
 
   const { error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
+  email,
+  password,
+  options: {
+    emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/callback`,
+  },
+});
 
   if (error) {
     console.error('Supabase sign-up error:', error);
     return error.message;
   }
 
+  redirect('/login');
+}
+
+export async function signOutWithSupabase() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
   redirect('/login');
 }

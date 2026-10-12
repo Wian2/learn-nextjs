@@ -31,9 +31,19 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getClaims();
+  
+const { data, error } = await supabase.auth.getClaims();
 
-  return response;
+const claims = error ? null : data?.claims;
+
+if (!claims && request.nextUrl.pathname.startsWith('/dashboard')) {
+  const url = request.nextUrl.clone();
+  url.pathname = '/login';
+  return NextResponse.redirect(url);
+}
+
+return response;
+
 }
 
 export const config = {
