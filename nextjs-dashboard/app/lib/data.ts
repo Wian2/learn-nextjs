@@ -259,3 +259,80 @@ export async function fetchPatientById(id: string): Promise<Patient | null> {
 
   return (data as Patient | null) ?? null;
 }
+
+
+export type Treatment = {
+  id: string;
+  user_id: string;
+  appointment_id: string;
+  procedure: string;
+  fee_cents: number;
+  created_at: string;
+};
+
+
+export async function fetchTreatments() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('treatments')
+    .select(`
+      id,
+      user_id,
+      appointment_id,
+      procedure,
+      fee_cents,
+      created_at,
+      appointments (
+        starts_at,
+        status,
+        patients (
+          full_name
+        )
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to fetch treatments:', error.message);
+    throw new Error('Failed to fetch treatments.');
+  }
+
+  return data;
+}
+
+
+export async function fetchClinicCardData() {
+  const supabase = await createClient();
+
+  const [
+    { count: patientCount, error: patientError },
+    { count: appointmentCount, error: appointmentError },
+    { count: treatmentCount, error: treatmentError },
+  ] = await Promise.all([
+    supabase
+      .from('patients')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('treatments')
+      .select('*', { count: 'exact', head: true }),
+  ]);
+
+  if (patientError || appointmentError || treatmentError) {
+    console.error('Clinic card data error:', {
+      patientError,
+      appointmentError,
+      treatmentError,
+    });
+    throw new Error('Failed to fetch clinic card data.');
+  }
+
+  return {
+    numberOfPatients: patientCount ?? 0,
+    numberOfAppointments: appointmentCount ?? 0,
+    numberOfTreatments: treatmentCount ?? 0,
+  };
+}

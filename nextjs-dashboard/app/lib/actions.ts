@@ -199,3 +199,305 @@ export async function signOutWithSupabase() {
   await supabase.auth.signOut();
   redirect('/login');
 }
+
+
+export async function createPatient(formData: FormData) {
+  const fullName = String(formData.get('full_name') ?? '').trim();
+  const phone = String(formData.get('phone') ?? '').trim();
+  const dateOfBirth = String(
+    formData.get('date_of_birth') ?? '',
+  ).trim();
+
+  if (!fullName || fullName.length > 150 || phone.length > 30) {
+    throw new Error('Please provide valid patient details.');
+  }
+
+  if (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+    throw new Error('Please provide a valid date of birth.');
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect('/login');
+  }
+
+  const { error } = await supabase.from('patients').insert({
+    user_id: user.id,
+    full_name: fullName,
+    phone: phone || null,
+    date_of_birth: dateOfBirth || null,
+  });
+
+  if (error) {
+    console.error('Failed to create patient:', error.message);
+    throw new Error('Could not register the patient. Please try again.');
+  }
+
+  revalidatePath('/dashboard/patients');
+  redirect('/dashboard/patients');
+}
+
+
+export async function updatePatient(
+  id: string,
+  prevState: State,
+  formData: FormData,
+): Promise<State> {
+  const fullName = String(formData.get('full_name') ?? '').trim();
+  const phone = String(formData.get('phone') ?? '').trim();
+  const dateOfBirth = String(
+    formData.get('date_of_birth') ?? '',
+  ).trim();
+
+  if (!fullName || fullName.length > 150 || phone.length > 30) {
+    return {
+      message: 'Please provide valid patient details.',
+    };
+  }
+
+  if (
+    dateOfBirth &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)
+  ) {
+    return {
+      message: 'Please provide a valid date of birth.',
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect('/login');
+  }
+
+  const { data, error } = await supabase
+    .from('patients')
+    .update({
+      full_name: fullName,
+      phone: phone || null,
+      date_of_birth: dateOfBirth || null,
+    })
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to update patient:', error.message);
+    return {
+      message: 'Could not update the patient. Please try again.',
+    };
+  }
+
+  if (!data) {
+    return {
+      message: 'Patient not found or you do not have permission to edit this record.',
+    };
+  }
+
+  revalidatePath('/dashboard/patients');
+  revalidatePath(`/dashboard/patients/${id}/edit`);
+  redirect('/dashboard/patients');
+}
+
+
+export async function createAppointment(formData: FormData) {
+  const patientId = String(formData.get('patient_id') ?? '').trim();
+  const startsAt = String(formData.get('starts_at') ?? '').trim();
+
+  if (!patientId || !startsAt) {
+    throw new Error('Please select a patient and appointment date/time.');
+  }
+
+  // Convert the date/time input into a valid ISO timestamp.
+  const appointmentDate = new Date(startsAt);
+
+  if (Number.isNaN(appointmentDate.getTime())) {
+    throw new Error('Please provide a valid appointment date and time.');
+  }
+
+  if (appointmentDate.getTime() <= Date.now()) {
+    throw new Error('Please choose an appointment time in the future.');
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect('/login');
+  }
+
+  // Confirm the selected patient belongs to this signed-in user.
+  const { data: patient, error: patientError } = await supabase
+    .from('patients')
+    .select('id')
+    .eq('id', patientId)
+    .maybeSingle();
+
+  if (patientError || !patient) {
+    throw new Error('Please select a valid patient.');
+  }
+
+  const { error } = await supabase.from('appointments').insert({
+    user_id: user.id,
+    patient_id: patientId,
+    starts_at: appointmentDate.toISOString(),
+    status: 'booked',
+  });
+
+  if (error) {
+    console.error('Failed to create appointment:', error.message);
+    throw new Error('Could not book the appointment. Please try again.');
+  }
+
+  revalidatePath('/dashboard/appointments');
+  redirect('/dashboard/appointments');
+}
+
+
+export async function updateAppointment(
+  id: string,
+  formData: FormData,
+) {
+  const patientId = String(formData.get('patient_id') ?? '').trim();
+  const startsAt = String(formData.get('starts_at') ?? '').trim();
+  const status = String(formData.get('status') ?? '').trim();
+
+  if (!patientId || !startsAt || !status) {
+    throw new Error('Please complete all appointment fields.');
+  }
+
+  if (!['booked', 'done', 'no_show'].includes(status)) {
+    throw new Error('Please select a valid appointment status.');
+  }
+
+  const appointmentDate = new Date(startsAt);
+
+  if (Number.isNaN(appointmentDate.getTime())) {
+    throw new Error('Please provide a valid appointment date and time.');
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect('/login');
+  }
+
+  const { data: patient, error: patientError } = await supabase
+    .from('patients')
+    .select('id')
+    .eq('id', patientId)
+    .maybeSingle();
+
+  if (patientError || !patient) {
+    throw new Error('Please select a valid patient.');
+  }
+
+  const { data: updatedAppointment, error } = await supabase
+    .from('appointments')
+    .update({
+      patient_id: patientId,
+      starts_at: appointmentDate.toISOString(),
+      status,
+    })
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+
+  if (error || !updatedAppointment) {
+    console.error(
+      'Failed to update appointment:',
+      error?.message ?? 'Appointment not found or access denied.',
+    );
+    throw new Error('Could not update the appointment. Please try again.');
+  }
+
+  revalidatePath('/dashboard/appointments');
+  redirect('/dashboard/appointments');
+}
+
+
+export async function createTreatment(formData: FormData) {
+  const appointmentId = String(
+    formData.get('appointment_id') ?? '',
+  ).trim();
+  const procedure = String(
+    formData.get('procedure') ?? '',
+  ).trim();
+  const feeInput = String(
+    formData.get('fee') ?? '',
+  ).trim();
+
+  const fee = Number(feeInput);
+
+  if (
+    !appointmentId ||
+    !procedure ||
+    procedure.length > 200 ||
+    !feeInput ||
+    !Number.isFinite(fee) ||
+    fee < 0 ||
+    !/^\d+(\.\d{1,2})?$/.test(feeInput)
+  ) {
+    throw new Error(
+      'Please provide a valid appointment, procedure, and fee.',
+    );
+  }
+
+  const feeCents = Math.round(fee * 100);
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect('/login');
+  }
+
+  const { data: appointment, error: appointmentError } =
+    await supabase
+      .from('appointments')
+      .select('id')
+      .eq('id', appointmentId)
+      .maybeSingle();
+
+  if (appointmentError || !appointment) {
+    throw new Error('Please select a valid appointment.');
+  }
+
+  const { error } = await supabase.from('treatments').insert({
+    user_id: user.id,
+    appointment_id: appointmentId,
+    procedure,
+    fee_cents: feeCents,
+  });
+
+  if (error) {
+    console.error('Failed to create treatment:', error.message);
+    throw new Error('Could not save the treatment. Please try again.');
+  }
+
+  revalidatePath('/dashboard/treatments');
+  redirect('/dashboard/treatments');
+}
