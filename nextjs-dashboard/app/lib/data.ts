@@ -338,66 +338,22 @@ export async function fetchClinicCardData() {
 }
 
 
+
 export async function fetchPatientRegistrations() {
   const supabase = await createClient();
 
-  const now = new Date();
-  const currentMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1,
-  );
-
-  // Include the current month and the previous five months.
-  const startDate = new Date(
-    now.getFullYear(),
-    now.getMonth() - 5,
-    1,
-  );
-
   const { data, error } = await supabase
-    .from('patients')
-    .select('created_at')
-    .gte('created_at', startDate.toISOString())
-    .lt(
-      'created_at',
-      new Date(
-        currentMonth.getFullYear(),
-        currentMonth.getMonth() + 1,
-        1,
-      ).toISOString(),
-    );
+    .from('patients_per_month')
+    .select('month_start, label, new_patients')
+    .order('month_start', { ascending: true });
 
   if (error) {
-    console.error('Failed to fetch patient registrations:', error.message);
+    console.error(
+      'Failed to fetch patient registrations:',
+      error.message,
+    );
     throw new Error('Failed to fetch patient registrations.');
   }
 
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(
-      now.getFullYear(),
-      now.getMonth() - 5 + index,
-      1,
-    );
-
-    return {
-      month: date.toLocaleDateString('en-ZA', { month: 'short' }),
-      year: date.getFullYear(),
-      registrations: 0,
-    };
-  });
-
-  for (const patient of data ?? []) {
-    const createdAt = new Date(patient.created_at);
-    const monthIndex =
-      (createdAt.getFullYear() - startDate.getFullYear()) * 12 +
-      createdAt.getMonth() -
-      startDate.getMonth();
-
-    if (monthIndex >= 0 && monthIndex < months.length) {
-      months[monthIndex].registrations += 1;
-    }
-  }
-
-  return months;
+  return data ?? [];
 }
