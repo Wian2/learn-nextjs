@@ -4,6 +4,7 @@ import {
   UserGroupIcon,
   HomeIcon,
   DocumentDuplicateIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -14,6 +15,11 @@ import clsx from 'clsx';
 
 const links = [
   { name: 'Home', href: '/dashboard', icon: HomeIcon },
+  {
+  name: 'Tomorrow',
+  href: '/dashboard/tomorrow',
+  icon: CalendarDaysIcon,
+  },
   {
     name: 'Appointments',
     href: '/dashboard/appointments',

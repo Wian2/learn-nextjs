@@ -201,6 +201,36 @@ export async function signOutWithSupabase() {
 }
 
 
+async function getCurrentClinic(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect('/login');
+  }
+
+  const { data: membership, error } = await supabase
+    .from('clinic_members')
+    .select('clinic_id, role')
+    .eq('user_id', user.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !membership) {
+    console.error('Failed to get clinic membership:', error?.message);
+    throw new Error('Your account is not assigned to a clinic.');
+  }
+
+  return {
+    user,
+    clinicId: membership.clinic_id,
+    role: membership.role,
+  };
+}
+
+
 export async function createPatient(formData: FormData) {
   const fullName = String(formData.get('full_name') ?? '').trim();
   const phone = String(formData.get('phone') ?? '').trim();
@@ -216,28 +246,23 @@ export async function createPatient(formData: FormData) {
     throw new Error('Please provide a valid date of birth.');
   }
 
-  const supabase = await createClient();
+  
+const supabase = await createClient();
+const { user, clinicId } = await getCurrentClinic(supabase);
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+const { error } = await supabase.from('patients').insert({
+  user_id: user.id,
+  clinic_id: clinicId,
+  full_name: fullName,
+  phone: phone || null,
+  date_of_birth: dateOfBirth || null,
+});
 
-  if (userError || !user) {
-    redirect('/login');
-  }
+if (error) {
+  console.error('Failed to create patient:', error.message);
+  throw new Error('Could not register the patient. Please try again.');
+}
 
-  const { error } = await supabase.from('patients').insert({
-    user_id: user.id,
-    full_name: fullName,
-    phone: phone || null,
-    date_of_birth: dateOfBirth || null,
-  });
-
-  if (error) {
-    console.error('Failed to create patient:', error.message);
-    throw new Error('Could not register the patient. Please try again.');
-  }
 
   revalidatePath('/dashboard/patients');
   redirect('/dashboard/patients');
@@ -330,39 +355,35 @@ export async function createAppointment(formData: FormData) {
     throw new Error('Please choose an appointment time in the future.');
   }
 
-  const supabase = await createClient();
+  
+const supabase = await createClient();
+const { user, clinicId } = await getCurrentClinic(supabase);
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+// Confirm the patient belongs to this clinic.
+const { data: patient, error: patientError } = await supabase
+  .from('patients')
+  .select('id')
+  .eq('id', patientId)
+  .eq('clinic_id', clinicId)
+  .maybeSingle();
 
-  if (userError || !user) {
-    redirect('/login');
-  }
+if (patientError || !patient) {
+  throw new Error('Please select a valid patient.');
+}
 
-  // Confirm the selected patient belongs to this signed-in user.
-  const { data: patient, error: patientError } = await supabase
-    .from('patients')
-    .select('id')
-    .eq('id', patientId)
-    .maybeSingle();
+const { error } = await supabase.from('appointments').insert({
+  user_id: user.id,
+  clinic_id: clinicId,
+  patient_id: patientId,
+  starts_at: appointmentDate.toISOString(),
+  status: 'booked',
+});
 
-  if (patientError || !patient) {
-    throw new Error('Please select a valid patient.');
-  }
+if (error) {
+  console.error('Failed to create appointment:', error.message);
+  throw new Error('Could not book the appointment. Please try again.');
+}
 
-  const { error } = await supabase.from('appointments').insert({
-    user_id: user.id,
-    patient_id: patientId,
-    starts_at: appointmentDate.toISOString(),
-    status: 'booked',
-  });
-
-  if (error) {
-    console.error('Failed to create appointment:', error.message);
-    throw new Error('Could not book the appointment. Please try again.');
-  }
 
   revalidatePath('/dashboard/appointments');
   redirect('/dashboard/appointments');
@@ -464,40 +485,85 @@ export async function createTreatment(formData: FormData) {
   }
 
   const feeCents = Math.round(fee * 100);
-  const supabase = await createClient();
+  
+const supabase = await createClient();
+const { user, clinicId, role } = await getCurrentClinic(supabase);
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+if (role !== 'owner') {
+  throw new Error('Only the clinic owner can record treatments.');
+}
 
-  if (userError || !user) {
-    redirect('/login');
-  }
+// Confirm the appointment belongs to this clinic.
+const { data: appointment, error: appointmentError } = await supabase
+  .from('appointments')
+  .select('id')
+  .eq('id', appointmentId)
+  .eq('clinic_id', clinicId)
+  .maybeSingle();
 
-  const { data: appointment, error: appointmentError } =
-    await supabase
-      .from('appointments')
-      .select('id')
-      .eq('id', appointmentId)
-      .maybeSingle();
+if (appointmentError || !appointment) {
+  throw new Error('Please select a valid appointment.');
+}
 
-  if (appointmentError || !appointment) {
-    throw new Error('Please select a valid appointment.');
-  }
+const { error } = await supabase.from('treatments').insert({
+  user_id: user.id,
+  clinic_id: clinicId,
+  appointment_id: appointmentId,
+  procedure,
+  fee_cents: feeCents,
+});
 
-  const { error } = await supabase.from('treatments').insert({
-    user_id: user.id,
-    appointment_id: appointmentId,
-    procedure,
-    fee_cents: feeCents,
-  });
+if (error) {
+  console.error('Failed to create treatment:', error.message);
+  throw new Error('Could not save the treatment. Please try again.');
+}
 
-  if (error) {
-    console.error('Failed to create treatment:', error.message);
-    throw new Error('Could not save the treatment. Please try again.');
-  }
 
   revalidatePath('/dashboard/treatments');
   redirect('/dashboard/treatments');
+}
+
+
+
+
+export async function deletePatient(id: string): Promise<{ message: string | null }> {
+  const supabase = await createClient();
+
+  const { data: appointments, error: appointmentError } = await supabase
+    .from('appointments')
+    .select('id')
+    .eq('patient_id', id)
+    .limit(1);
+
+  if (appointmentError) {
+    console.error('Failed to check patient appointments:', appointmentError.message);
+    return { message: 'Could not check this patient’s appointments.' };
+  }
+
+  if (appointments && appointments.length > 0) {
+    return {
+      message: 'This patient has appointments. Delete or reassign those appointments first.',
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('patients')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to delete patient:', error.message);
+    return { message: 'Could not delete the patient. Please try again.' };
+  }
+
+  if (!data) {
+    return {
+      message: 'Patient not found or you do not have permission to delete this record.',
+    };
+  }
+
+  revalidatePath('/dashboard/patients');
+  return { message: null };
 }

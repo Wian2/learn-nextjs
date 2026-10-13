@@ -1,6 +1,7 @@
 
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 import EditPatientForm from '@/app/ui/patients/edit-form';
+import DeletePatientButton from '@/app/ui/patients/delete-button';
 import { fetchPatientById } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
 
@@ -28,8 +29,13 @@ export default async function Page({
           },
         ]}
       />
+
       <div className="mt-6">
         <EditPatientForm patient={patient} />
+
+        <div className="mt-4 flex justify-end">
+          <DeletePatientButton id={id} />
+        </div>
       </div>
     </main>
   );

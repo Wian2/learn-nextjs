@@ -1,6 +1,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import DeletePatientButton from '@/app/ui/patients/delete-button';
 
 export default async function PatientsPage() {
   const supabase = await createClient();
@@ -94,14 +95,20 @@ export default async function PatientsPage() {
                           ).toLocaleDateString('en-ZA')
                         : '—'}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <Link
-                            href={`/dashboard/patients/${patient.id}/edit`}
-                            className="font-medium text-blue-600 hover:text-blue-800"
-                        >
-                            Edit
-                        </Link>
-                    </td>
+                    
+<td className="whitespace-nowrap px-6 py-4 text-sm">
+  <div className="flex items-start gap-4">
+    <Link
+      href={`/dashboard/patients/${patient.id}/edit`}
+      className="font-medium text-blue-600 hover:text-blue-800"
+    >
+      Edit
+    </Link>
+
+    <DeletePatientButton id={patient.id} />
+  </div>
+</td>
+
 
                   </tr>
                 ))}
