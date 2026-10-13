@@ -338,7 +338,6 @@ export async function fetchClinicCardData() {
 }
 
 
-
 export async function fetchPatientRegistrations() {
   const supabase = await createClient();
 
