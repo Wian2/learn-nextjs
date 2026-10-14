@@ -18,7 +18,11 @@ The application will use authenticated users and Supabase Row Level Security (RL
 
 
 2. Entities
-The application will contain exactly three entities.
+The long-term proposal contains three entities. The current frozen demo release
+ships patients and appointments; treatments are explicitly deferred so the
+two shipped entities and charts can be verified and presented reliably. The
+table below is the original proposal schema; the implementation uses clinic
+membership to authorize access to shared clinic records.
 
 Entity          Replaces	Fields
 patients	    customers	id: uuid, user_id: uuid, full_name: text, phone: text, date_of_birth: date, created_at: timestamptz
@@ -38,7 +42,7 @@ patients
 
 patients is the parent entity, so it will be built first.
 
-Each capstone entity includes:
+In the initial proposal, each entity was expected to include:
 
 id — the row's unique identifier;
 user_id — the authenticated user who owns the row; and
@@ -66,13 +70,15 @@ patients is the first entity to build.
 4. Roles
 The application has two roles.
 
-Role	    Can see	                    Can change
-Owner	    Everything	                Everything
-Front desk	Patients and appointments	Create and edit patients and appointments; cannot delete records or modify treatments
+The implementation uses `clinic_members` to authorize users by clinic
+membership. Patient and appointment records and patient options are scoped to
+the signed-in user's clinic. Owners can delete appointments; clinic members can
+create and edit them. The original role matrix was not implemented as a
+separate authorization system.
 
-These role definitions will eventually be reflected in the application's authorisation and Supabase RLS policies.
-
-For the first RLS implementation, the baseline rule is that an authenticated user can access only rows where user_id matches their authenticated user ID.
+The initial per-user `user_id` baseline was superseded by clinic-membership
+policies so authorized staff in the same clinic can work with shared clinic
+records. Supabase RLS remains the database enforcement boundary.
 
 
 
