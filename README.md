@@ -43,12 +43,21 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
   `anon` has broad table privileges, including `TRUNCATE`, on `appointments`
   and `clinic_members`. No live grants have been changed.
 
+### RLS smoke test
+
+- Production, 14 Oct 2026: checked the dashboard as both test users. User one
+  saw 32 patients and 2 appointments; user two saw 1 patient and 1 appointment.
+  The separate counts are consistent with the clinic-membership RLS policies.
+
 ### Data preparation
 
 - The `patients` table is protected by Row Level Security (RLS).
 - Test patient records are seeded across the six-month period.
 - The `patients_per_month` view returns six monthly rows, including months with zero new patients.
 - The view has been tested through the app using two separate user accounts.
+- [`supabase/seed_appointments_for_owner.sql`](./supabase/seed_appointments_for_owner.sql)
+  adds one appointment for each of the selected user's clinic patients that
+  does not already have an appointment. Replace its UID placeholder first.
 
 ### Technology
 
