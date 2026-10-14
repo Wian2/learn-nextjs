@@ -50,6 +50,40 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
   appointment's edit URL.
 - User two successfully created, edited, and deleted a test appointment.
 
+## Smoke test (14 Oct, production)
+
+- [x] 1. Signed out, visiting `/dashboard` redirects to login.
+- [x] 2. User one signs in and lands on `/dashboard`.
+- [ ] 3. User one creates, edits, and deletes a patient; verify the list after each action.
+- [ ] 4. User two creates, edits, and deletes an appointment; verify the selector lists only their patients. (CRUD passed; the full selector scope was not separately checked.)
+- [x] 5. Both charts render using real rows; user-specific chart results were checked for both users.
+- [x] 6. User two sees only their permitted patient and appointment data.
+- [ ] 7. User two opens a user-one patient's edit URL and gets not found. (Appointment URL was checked.)
+- [ ] 8. Empty patient and appointment forms show field-level messages and save nothing.
+- [ ] 9. `/dashboard/nothing-here` shows the not-found page.
+- [ ] 10. Sign out, verify Back does not reveal the dashboard, and confirm `.env.local` is not tracked.
+
+## Freeze plan (14 Oct)
+
+### Must ship (each item is checked on the preview URL)
+
+1. Verify signed-out redirect, sign-in, sign-out/back behavior, and the unknown-route page; smoke checks 1, 2, 9, and 10.
+2. Verify patient create, edit, delete, and user-two denial of a user-one patient edit URL; smoke checks 3, 6, and 7.
+3. Stabilize appointment create, edit, and delete so list changes appear without a manual refresh; verify the related-patient selector and isolation; smoke checks 4, 6, and 7.
+4. Verify both charts show the appropriate real, RLS-scoped data for both users; smoke check 5.
+5. Verify empty patient and appointment forms give clear field-level feedback and save nothing; smoke check 8.
+
+### Cut
+
+- Third entity (treatments): cut; it is not implemented, and freeze effort will go to verifying the two shipped entities and charts.
+- Stretch (Tomorrow page): cut from must-ship and the demo; its local-time behavior has not been verified for production.
+- Realtime/Storage: cut; neither is needed for the proposal's core workflow.
+
+### Monday polish (cosmetic or README-only)
+
+1. Review wording in empty states and chart captions.
+2. Update this README with final preview and production smoke-test results.
+
 ### Data preparation
 
 - The `patients` table is protected by Row Level Security (RLS).
