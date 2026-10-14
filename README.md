@@ -63,23 +63,27 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
 - [ ] 9. `/dashboard/nothing-here` shows the not-found page.
 - [ ] 10. Sign out, verify Back does not reveal the dashboard, and confirm `.env.local` is not tracked.
 
-## Freeze plan (14 Oct)
+## 🧊 Freeze Plan (14 Oct)
 
-### Must ship (each item is checked on the preview URL)
+### 🚀 Must Ship
 
-1. Verify signed-out redirect, sign-in, sign-out/back behavior, and the unknown-route page; smoke checks 1, 2, 9, and 10.
-2. Verify patient create, edit, delete, and user-two denial of a user-one patient edit URL; smoke checks 3, 6, and 7.
-3. Stabilize appointment create, edit, and delete so list changes appear without a manual refresh; verify the related-patient selector and isolation; smoke checks 4, 6, and 7.
-4. Verify both charts show the appropriate real, RLS-scoped data for both users; smoke check 5.
-5. Verify empty patient and appointment forms give clear field-level feedback and save nothing; smoke check 8.
+Each item is tested on the Vercel preview URL.
 
-### Cut
+1. **Auth & routing:** Verify signed-out redirect, sign-in, sign-out/back behavior, and the unknown-route page; smoke checks 1, 2, 9, and 10.
+2. **Patient management:** Verify patient create, edit, delete, and user-two denial of a user-one patient edit URL; smoke checks 3, 6, and 7.
+3. **Appointments:** Stabilize appointment create, edit, and delete so list changes appear without a manual refresh. Verify the related-patient selector and isolation; smoke checks 4, 6, and 7.
+4. **Analytics:** Verify both charts show appropriate real, RLS-scoped data for both users; smoke check 5.
+5. **Validation:** Verify empty patient and appointment forms give clear field-level feedback and save nothing; smoke check 8.
 
-- Third entity (treatments): cut; it is not implemented, and freeze effort will go to verifying the two shipped entities and charts.
-- Stretch (Tomorrow page): cut from must-ship and the demo; its local-time behavior has not been verified for production.
-- Realtime/Storage: cut; neither is needed for the proposal's core workflow.
+### ✂️ Cut
 
-### Monday polish (cosmetic or README-only)
+- **Third entity (treatments):** Cut; it is not implemented, and freeze effort will go to verifying the two shipped entities and charts.
+- **Stretch (Tomorrow page):** Cut from must-ship and the demo; its local-time behavior has not been verified for production.
+- **Realtime/Storage:** Cut; neither is needed for the proposal's core workflow.
+
+### 🎨 Monday Polish
+
+Cosmetic or README-only.
 
 1. Review wording in empty states and chart captions.
 2. Update this README with final preview and production smoke-test results.
@@ -91,8 +95,10 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
 - The `patients_per_month` view returns six monthly rows, including months with zero new patients.
 - The view has been tested through the app using two separate user accounts.
 - [`supabase/seed_appointments_for_owner.sql`](./supabase/seed_appointments_for_owner.sql)
-  adds one appointment for each of the selected user's clinic patients that
-  does not already have an appointment. Replace its UID placeholder first.
+  is a clinic-aware seed script that adds appointments for selected-user
+  patients that do not already have one; it has been run for the test user.
+  **Reuse caution:** replace `PASTE_USER_UID_HERE` only when intentionally
+  running it for a test user, and keep real UIDs out of committed changes.
 
 ### Technology
 
