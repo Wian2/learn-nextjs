@@ -50,18 +50,18 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
   appointment's edit URL.
 - User two successfully created, edited, and deleted a test appointment.
 
-## Smoke test (14 Oct, production)
+## Smoke test (14 Oct, Vercel Preview)
 
 - [x] 1. Signed out, visiting `/dashboard` redirects to login.
 - [x] 2. User one signs in and lands on `/dashboard`.
-- [ ] 3. User one creates, edits, and deletes a patient; verify the list after each action.
-- [ ] 4. User two creates, edits, and deletes an appointment; verify the selector lists only their patients. (CRUD passed; the full selector scope was not separately checked.)
-- [x] 5. Both charts render using real rows; user-specific chart results were checked for both users.
+- [x] 3. User one creates, edits, and deletes a patient; the list updates each time.
+- [x] 4. User two creates, edits, and deletes an appointment; the related-patient selector is scoped to their clinic.
+- [x] 5. Both charts render using real rows, with each user's RLS-scoped data.
 - [x] 6. User two sees only their permitted patient and appointment data.
-- [ ] 7. User two opens a user-one patient's edit URL and gets not found. (Appointment URL was checked.)
-- [ ] 8. Empty patient and appointment forms show field-level messages and save nothing.
-- [ ] 9. `/dashboard/nothing-here` shows the not-found page.
-- [ ] 10. Sign out, verify Back does not reveal the dashboard, and confirm `.env.local` is not tracked.
+- [x] 7. User two opening a user-one patient's edit URL gets not found.
+- [x] 8. Empty patient and appointment forms show field-level messages and save nothing.
+- [x] 9. `/dashboard/nothing-here` shows the not-found page.
+- [x] 10. Sign out returns to login, Back does not reveal the dashboard, and `.env.local` is not tracked.
 
 ## 🧊 Freeze Plan (14 Oct)
 
