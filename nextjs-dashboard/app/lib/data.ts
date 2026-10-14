@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import {
   CustomerField,
   CustomersTableType,
@@ -355,4 +356,110 @@ export async function fetchPatientRegistrations() {
   }
 
   return data ?? [];
+}
+
+export type AppointmentStatus = 'booked' | 'done' | 'no_show';
+
+export type AppointmentRow = {
+  id: string;
+  starts_at: string;
+  status: AppointmentStatus;
+  patients:
+    | { full_name: string; phone: string | null }
+    | { full_name: string; phone: string | null }[]
+    | null;
+};
+
+export type PatientOption = {
+  id: string;
+  full_name: string;
+};
+
+export async function fetchAppointments(): Promise<AppointmentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('appointments')
+    .select(`
+      id,
+      starts_at,
+      status,
+      patients (
+        full_name,
+        phone
+      )
+    `)
+    .order('starts_at', { ascending: true });
+
+  if (error) {
+    console.error('Failed to fetch appointments:', error.message);
+    throw new Error('Failed to fetch appointments.');
+  }
+
+  return (data ?? []) as AppointmentRow[];
+}
+
+export async function fetchPatientOptions(): Promise<PatientOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('patients')
+    .select('id, full_name')
+    .order('full_name', { ascending: true });
+
+  if (error) {
+    console.error('Failed to fetch patient options:', error.message);
+    throw new Error('Failed to fetch patient options.');
+  }
+
+  return data ?? [];
+}
+
+export async function fetchAppointmentById(id: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, patient_id, starts_at, status')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to fetch appointment:', error.message);
+    throw new Error('Failed to fetch appointment.');
+  }
+
+  return data;
+}
+
+export async function fetchCurrentClinicRole(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    console.error('Failed to identify current user:', userError.message);
+    throw new Error('Failed to identify current user.');
+  }
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  const { data: membership, error } = await supabase
+    .from('clinic_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to fetch clinic role:', error.message);
+    throw new Error('Failed to fetch clinic role.');
+  }
+
+  if (!membership) {
+    throw new Error('Your account is not assigned to a clinic.');
+  }
+
+  return membership.role;
 }

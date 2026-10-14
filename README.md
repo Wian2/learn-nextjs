@@ -15,6 +15,18 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
 - **Decision context:** The clinic owner uses the trend to decide whether to open a second consulting day.
 - **View SQL:** [`supabase/patients_per_month.sql`](./supabase/patients_per_month.sql)
 
+## Appointments
+
+- Appointments are read and written through the Supabase server client.
+- Patient options are scoped by the signed-in user's clinic membership.
+- Appointment times are interpreted and displayed in `Africa/Johannesburg`.
+- Owners can delete appointments; clinic members can create and edit them.
+- The live appointments table and patient foreign-key relationship already
+  exist. [`supabase/appointments_rls.sql`](./supabase/appointments_rls.sql)
+  documents the clinic-membership policies, but has not been applied; review it
+  against the current Supabase policies before running because it replaces all
+  policies on `public.appointments`.
+
 ### Data preparation
 
 - The `patients` table is protected by Row Level Security (RLS).

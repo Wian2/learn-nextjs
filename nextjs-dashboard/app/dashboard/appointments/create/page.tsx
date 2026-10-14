@@ -1,42 +1,12 @@
 
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 import { createAppointment } from '@/app/lib/actions';
 import { Button } from '@/app/ui/button';
+import { fetchPatientOptions } from '@/app/lib/data';
 
 export default async function CreateAppointmentPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    redirect('/login');
-  }
-
-  const { data: patients, error } = await supabase
-    .from('patients')
-    .select('id, full_name')
-    .order('full_name', { ascending: true });
-
-  if (error) {
-    console.error('Failed to fetch patients:', error.message);
-
-    return (
-      <main className="w-full">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Book appointment
-        </h1>
-        <p className="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
-          We couldn&apos;t load the patient list. Please try again.
-        </p>
-      </main>
-    );
-  }
+  const patients = await fetchPatientOptions();
 
   return (
     <main className="w-full">
@@ -100,6 +70,26 @@ export default async function CreateAppointmentPage() {
               required
               className="block w-full rounded-md border border-gray-200 bg-white py-2 px-3 text-sm"
             />
+          </div>
+
+          <div className="mb-6">
+            <label
+              htmlFor="status"
+              className="mb-2 block text-sm font-medium"
+            >
+              Status
+            </label>
+            <select
+              id="status"
+              name="status"
+              defaultValue="booked"
+              required
+              className="block w-full rounded-md border border-gray-200 bg-white py-2 px-3 text-sm"
+            >
+              <option value="booked">Booked</option>
+              <option value="done">Done</option>
+              <option value="no_show">No-show</option>
+            </select>
           </div>
         </div>
 

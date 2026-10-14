@@ -1,10 +1,14 @@
 
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { notFound } from 'next/navigation';
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 import { updateAppointment } from '@/app/lib/actions';
 import { Button } from '@/app/ui/button';
+import {
+  fetchAppointmentById,
+  fetchPatientOptions,
+} from '@/app/lib/data';
+import { toDateTimeLocal } from '@/app/lib/time';
 
 export default async function EditAppointmentPage({
   params,
@@ -12,47 +16,16 @@ export default async function EditAppointmentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    redirect('/login');
-  }
-
-  const { data: appointment, error } = await supabase
-    .from('appointments')
-    .select('id, patient_id, starts_at, status')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Failed to fetch appointment:', error.message);
-    throw new Error('Could not load this appointment.');
-  }
+  const [appointment, patients] = await Promise.all([
+    fetchAppointmentById(id),
+    fetchPatientOptions(),
+  ]);
 
   if (!appointment) {
     notFound();
   }
 
-  const { data: patients, error: patientsError } = await supabase
-    .from('patients')
-    .select('id, full_name')
-    .order('full_name', { ascending: true });
-
-  if (patientsError) {
-    console.error('Failed to fetch patients:', patientsError.message);
-    throw new Error('Could not load the patient list.');
-  }
-
-  const localDateTime = new Date(
-    appointment.starts_at,
-  ).toLocaleString('sv-SE', {
-    timeZone: 'Africa/Johannesburg',
-  }).replace(' ', 'T').slice(0, 16);
+  const localDateTime = toDateTimeLocal(appointment.starts_at);
 
   return (
     <main>

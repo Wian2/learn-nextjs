@@ -7,6 +7,7 @@ import postgres from 'postgres';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
 import { createClient } from '@/lib/supabase/server';
+import { fromDateTimeLocal } from './time';
  
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
  
@@ -336,124 +337,151 @@ export async function updatePatient(
 }
 
 
+const AppointmentSchema = z.object({
+  patient_id: z.string().uuid(),
+  starts_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
+  status: z.enum(['booked', 'done', 'no_show']),
+});
+
+function parseAppointment(formData: FormData) {
+  return AppointmentSchema.parse({
+    patient_id: formData.get('patient_id'),
+    starts_at: formData.get('starts_at'),
+    status: formData.get('status'),
+  });
+}
+
 export async function createAppointment(formData: FormData) {
-  const patientId = String(formData.get('patient_id') ?? '').trim();
-  const startsAt = String(formData.get('starts_at') ?? '').trim();
-
-  if (!patientId || !startsAt) {
-    throw new Error('Please select a patient and appointment date/time.');
-  }
-
-  // Convert the date/time input into a valid ISO timestamp.
+  const appointment = parseAppointment(formData);
+  const startsAt = fromDateTimeLocal(appointment.starts_at);
   const appointmentDate = new Date(startsAt);
-
-  if (Number.isNaN(appointmentDate.getTime())) {
-    throw new Error('Please provide a valid appointment date and time.');
-  }
 
   if (appointmentDate.getTime() <= Date.now()) {
     throw new Error('Please choose an appointment time in the future.');
   }
 
-  
-const supabase = await createClient();
-const { user, clinicId } = await getCurrentClinic(supabase);
+  const supabase = await createClient();
+  const { user, clinicId } = await getCurrentClinic(supabase);
 
-// Confirm the patient belongs to this clinic.
-const { data: patient, error: patientError } = await supabase
-  .from('patients')
-  .select('id')
-  .eq('id', patientId)
-  .eq('clinic_id', clinicId)
-  .maybeSingle();
+  const { data: patient, error: patientError } = await supabase
+    .from('patients')
+    .select('id')
+    .eq('id', appointment.patient_id)
+    .eq('clinic_id', clinicId)
+    .maybeSingle();
 
-if (patientError || !patient) {
-  throw new Error('Please select a valid patient.');
-}
+  if (patientError) {
+    console.error('Failed to verify appointment patient:', patientError.message);
+    throw new Error('Could not verify the selected patient.');
+  }
 
-const { error } = await supabase.from('appointments').insert({
-  user_id: user.id,
-  clinic_id: clinicId,
-  patient_id: patientId,
-  starts_at: appointmentDate.toISOString(),
-  status: 'booked',
-});
+  if (!patient) {
+    throw new Error('Please select a patient from your clinic.');
+  }
 
-if (error) {
-  console.error('Failed to create appointment:', error.message);
-  throw new Error('Could not book the appointment. Please try again.');
-}
+  const { error } = await supabase.from('appointments').insert({
+    user_id: user.id,
+    clinic_id: clinicId,
+    patient_id: appointment.patient_id,
+    starts_at: startsAt,
+    status: appointment.status,
+  });
 
+  if (error) {
+    console.error('Failed to create appointment:', error.message);
+    throw new Error('Could not book the appointment. Please try again.');
+  }
 
   revalidatePath('/dashboard/appointments');
+  revalidatePath('/dashboard');
   redirect('/dashboard/appointments');
 }
-
 
 export async function updateAppointment(
   id: string,
   formData: FormData,
 ) {
-  const patientId = String(formData.get('patient_id') ?? '').trim();
-  const startsAt = String(formData.get('starts_at') ?? '').trim();
-  const status = String(formData.get('status') ?? '').trim();
-
-  if (!patientId || !startsAt || !status) {
-    throw new Error('Please complete all appointment fields.');
-  }
-
-  if (!['booked', 'done', 'no_show'].includes(status)) {
-    throw new Error('Please select a valid appointment status.');
-  }
-
-  const appointmentDate = new Date(startsAt);
-
-  if (Number.isNaN(appointmentDate.getTime())) {
-    throw new Error('Please provide a valid appointment date and time.');
-  }
-
+  const appointment = parseAppointment(formData);
+  const startsAt = fromDateTimeLocal(appointment.starts_at);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    redirect('/login');
-  }
+  const { clinicId } = await getCurrentClinic(supabase);
 
   const { data: patient, error: patientError } = await supabase
     .from('patients')
     .select('id')
-    .eq('id', patientId)
+    .eq('id', appointment.patient_id)
+    .eq('clinic_id', clinicId)
     .maybeSingle();
 
-  if (patientError || !patient) {
-    throw new Error('Please select a valid patient.');
+  if (patientError) {
+    console.error('Failed to verify appointment patient:', patientError.message);
+    throw new Error('Could not verify the selected patient.');
+  }
+
+  if (!patient) {
+    throw new Error('Please select a patient from your clinic.');
   }
 
   const { data: updatedAppointment, error } = await supabase
     .from('appointments')
     .update({
-      patient_id: patientId,
-      starts_at: appointmentDate.toISOString(),
-      status,
+      patient_id: appointment.patient_id,
+      starts_at: startsAt,
+      status: appointment.status,
     })
     .eq('id', id)
+    .eq('clinic_id', clinicId)
     .select('id')
     .maybeSingle();
 
-  if (error || !updatedAppointment) {
-    console.error(
-      'Failed to update appointment:',
-      error?.message ?? 'Appointment not found or access denied.',
-    );
+  if (error) {
+    console.error('Failed to update appointment:', error.message);
     throw new Error('Could not update the appointment. Please try again.');
   }
 
+  if (!updatedAppointment) {
+    throw new Error('Appointment not found or access denied.');
+  }
+
   revalidatePath('/dashboard/appointments');
+  revalidatePath(`/dashboard/appointments/${id}/edit`);
+  revalidatePath('/dashboard');
   redirect('/dashboard/appointments');
+}
+
+export async function deleteAppointment(
+  id: string,
+): Promise<{ message: string | null }> {
+  const supabase = await createClient();
+  const { clinicId, role } = await getCurrentClinic(supabase);
+
+  if (role !== 'owner') {
+    return { message: 'Only the clinic owner can delete appointments.' };
+  }
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .delete()
+    .eq('id', id)
+    .eq('clinic_id', clinicId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to delete appointment:', error.message);
+    return { message: 'Could not delete the appointment. Please try again.' };
+  }
+
+  if (!data) {
+    return {
+      message: 'Appointment not found or you do not have permission to delete it.',
+    };
+  }
+
+  revalidatePath('/dashboard/appointments');
+  revalidatePath('/dashboard/tomorrow');
+  revalidatePath('/dashboard');
+  return { message: null };
 }
 
 

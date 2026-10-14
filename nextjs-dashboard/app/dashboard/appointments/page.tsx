@@ -1,37 +1,17 @@
 
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import {
+  fetchAppointments,
+  fetchCurrentClinicRole,
+} from '@/app/lib/data';
+import { formatSA } from '@/app/lib/time';
+import AppointmentDeleteButton from '@/app/ui/appointments/delete-button';
 
 export default async function AppointmentsPage() {
-  const supabase = await createClient();
-
-  const { data: appointments, error } = await supabase
-    .from('appointments')
-    .select(`
-      id,
-      starts_at,
-      status,
-      patients (
-        full_name,
-        phone
-      )
-    `)
-    .order('starts_at', { ascending: true });
-
-  if (error) {
-    console.error('Failed to fetch appointments:', error.message);
-
-    return (
-      <div className="w-full">
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">
-          Appointments
-        </h1>
-        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          We couldn&apos;t load the appointments. Please try again.
-        </p>
-      </div>
-    );
-  }
+  const [appointments, role] = await Promise.all([
+    fetchAppointments(),
+    fetchCurrentClinicRole(),
+  ]);
 
   return (
     <div className="w-full">
@@ -95,13 +75,7 @@ export default async function AppointmentsPage() {
                         {patient?.full_name ?? 'Unknown patient'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {new Date(appointment.starts_at).toLocaleString(
-                          'en-ZA',
-                          {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          },
-                        )}
+                        {formatSA(appointment.starts_at)}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm">
                         <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium capitalize text-gray-700">
@@ -115,6 +89,11 @@ export default async function AppointmentsPage() {
                         >
                           Edit
                         </Link>
+                        {role === 'owner' && (
+                          <span className="ml-3">
+                            <AppointmentDeleteButton id={appointment.id} />
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
