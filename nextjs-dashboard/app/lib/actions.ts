@@ -37,6 +37,18 @@ export type State = {
   };
   message?: string | null;
 };
+
+export type EntityFormState = {
+  errors?: {
+    full_name?: string[];
+    phone?: string[];
+    date_of_birth?: string[];
+    patient_id?: string[];
+    starts_at?: string[];
+    status?: string[];
+  };
+  message?: string | null;
+};
  
 export async function createInvoice(prevState: State, formData: FormData) {
   const validatedFields = CreateInvoice.safeParse({
@@ -232,38 +244,48 @@ async function getCurrentClinic(supabase: Awaited<ReturnType<typeof createClient
 }
 
 
-export async function createPatient(formData: FormData) {
+export async function createPatient(
+  _prevState: EntityFormState,
+  formData: FormData,
+): Promise<EntityFormState> {
   const fullName = String(formData.get('full_name') ?? '').trim();
   const phone = String(formData.get('phone') ?? '').trim();
   const dateOfBirth = String(
     formData.get('date_of_birth') ?? '',
   ).trim();
 
-  if (!fullName || fullName.length > 150 || phone.length > 30) {
-    throw new Error('Please provide valid patient details.');
+  const errors: NonNullable<EntityFormState['errors']> = {};
+  if (!fullName) {
+    errors.full_name = ["Enter the patient's full name."];
+  } else if (fullName.length > 150) {
+    errors.full_name = ['The full name must be 150 characters or fewer.'];
+  }
+  if (phone.length > 30) {
+    errors.phone = ['The phone number must be 30 characters or fewer.'];
   }
 
   if (dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
-    throw new Error('Please provide a valid date of birth.');
+    errors.date_of_birth = ['Enter a valid date of birth.'];
+  }
+  if (Object.keys(errors).length > 0) {
+    return { errors, message: 'Please correct the highlighted fields.' };
   }
 
-  
-const supabase = await createClient();
-const { user, clinicId } = await getCurrentClinic(supabase);
+  const supabase = await createClient();
+  const { user, clinicId } = await getCurrentClinic(supabase);
 
-const { error } = await supabase.from('patients').insert({
-  user_id: user.id,
-  clinic_id: clinicId,
-  full_name: fullName,
-  phone: phone || null,
-  date_of_birth: dateOfBirth || null,
-});
+  const { error } = await supabase.from('patients').insert({
+    user_id: user.id,
+    clinic_id: clinicId,
+    full_name: fullName,
+    phone: phone || null,
+    date_of_birth: dateOfBirth || null,
+  });
 
-if (error) {
-  console.error('Failed to create patient:', error.message);
-  throw new Error('Could not register the patient. Please try again.');
-}
-
+  if (error) {
+    console.error('Failed to create patient:', error.message);
+    return { message: 'Could not register the patient. Please try again.' };
+  }
 
   revalidatePath('/dashboard/patients');
   redirect('/dashboard/patients');
@@ -351,13 +373,30 @@ function parseAppointment(formData: FormData) {
   });
 }
 
-export async function createAppointment(formData: FormData) {
-  const appointment = parseAppointment(formData);
+export async function createAppointment(
+  _prevState: EntityFormState,
+  formData: FormData,
+): Promise<EntityFormState> {
+  const parsedAppointment = AppointmentSchema.safeParse({
+    patient_id: formData.get('patient_id'),
+    starts_at: formData.get('starts_at'),
+    status: formData.get('status'),
+  });
+  if (!parsedAppointment.success) {
+    return {
+      errors: parsedAppointment.error.flatten().fieldErrors,
+      message: 'Please complete the required appointment fields.',
+    };
+  }
+  const appointment = parsedAppointment.data;
   const startsAt = fromDateTimeLocal(appointment.starts_at);
   const appointmentDate = new Date(startsAt);
 
   if (appointmentDate.getTime() <= Date.now()) {
-    throw new Error('Please choose an appointment time in the future.');
+    return {
+      errors: { starts_at: ['Choose a future date and time.'] },
+      message: 'Please choose a future appointment time.',
+    };
   }
 
   const supabase = await createClient();
@@ -372,11 +411,14 @@ export async function createAppointment(formData: FormData) {
 
   if (patientError) {
     console.error('Failed to verify appointment patient:', patientError.message);
-    throw new Error('Could not verify the selected patient.');
+    return { message: 'Could not verify the selected patient.' };
   }
 
   if (!patient) {
-    throw new Error('Please select a patient from your clinic.');
+    return {
+      errors: { patient_id: ['Select a patient from your clinic.'] },
+      message: 'Please select a patient from your clinic.',
+    };
   }
 
   const { error } = await supabase.from('appointments').insert({
@@ -389,7 +431,7 @@ export async function createAppointment(formData: FormData) {
 
   if (error) {
     console.error('Failed to create appointment:', error.message);
-    throw new Error('Could not book the appointment. Please try again.');
+    return { message: 'Could not book the appointment. Please try again.' };
   }
 
   revalidatePath('/dashboard/appointments');
