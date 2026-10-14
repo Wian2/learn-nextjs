@@ -505,6 +505,10 @@ export async function fetchCurrentClinicRole(): Promise<string> {
     error: userError,
   } = await supabase.auth.getUser();
 
+  if (userError?.name === 'AuthSessionMissingError') {
+    redirect('/login');
+  }
+
   if (userError) {
     console.error('Failed to identify current user:', userError.message);
     throw new Error('Failed to identify current user.');
