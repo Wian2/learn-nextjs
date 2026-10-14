@@ -360,9 +360,18 @@ export async function updatePatient(
 
 
 const AppointmentSchema = z.object({
-  patient_id: z.string().uuid(),
-  starts_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
-  status: z.enum(['booked', 'done', 'no_show']),
+  patient_id: z
+    .string({ required_error: 'Select a patient.' })
+    .uuid('Select a valid patient.'),
+  starts_at: z
+    .string({ required_error: 'Enter an appointment date and time.' })
+    .regex(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/,
+      'Enter a valid appointment date and time.',
+    ),
+  status: z.enum(['booked', 'done', 'no_show'], {
+    required_error: 'Select an appointment status.',
+  }),
 });
 
 function parseAppointment(formData: FormData) {
