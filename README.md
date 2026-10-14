@@ -15,6 +15,15 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
 - **Decision context:** The clinic owner uses the trend to decide whether to open a second consulting day.
 - **View SQL:** [`supabase/patients_per_month.sql`](./supabase/patients_per_month.sql)
 
+## Chart Two: No-show Share This Month
+
+- **Question:** What share of this month&apos;s appointments are no-shows?
+- **Who acts:** The clinic owner decides whether reminder messages may be needed.
+- **Chart shape:** Donut, with booked, completed, and no-show statuses.
+- **Rows:** Appointment status and count, scoped by the signed-in user&apos;s RLS.
+- **Window:** Current calendar month in `Africa/Johannesburg`.
+- **Empty state:** Explains when there are no appointments this month.
+
 ## Appointments
 
 - Appointments are read and written through the Supabase server client.

@@ -359,6 +359,14 @@ export async function fetchPatientRegistrations() {
 }
 
 export type AppointmentStatus = 'booked' | 'done' | 'no_show';
+export type MonthlyAppointmentStatusCount = {
+  status: AppointmentStatus;
+  count: number;
+};
+
+function isAppointmentStatus(value: unknown): value is AppointmentStatus {
+  return value === 'booked' || value === 'done' || value === 'no_show';
+}
 
 export type AppointmentRow = {
   id: string;
@@ -396,6 +404,67 @@ export async function fetchAppointments(): Promise<AppointmentRow[]> {
   }
 
   return (data ?? []) as AppointmentRow[];
+}
+
+export async function fetchMonthlyAppointmentStatuses(): Promise<{
+  monthLabel: string;
+  total: number;
+  statuses: MonthlyAppointmentStatusCount[];
+}> {
+  const now = new Date();
+  const monthParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Johannesburg',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(now);
+  const parts = Object.fromEntries(
+    monthParts.map(({ type, value }) => [type, value]),
+  );
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const nextMonthDate = new Date(Date.UTC(year, month, 1));
+  const nextYear = nextMonthDate.getUTCFullYear();
+  const nextMonth = String(nextMonthDate.getUTCMonth() + 1).padStart(2, '0');
+  const startAt = `${year}-${String(month).padStart(2, '0')}-01T00:00:00+02:00`;
+  const endAt = `${nextYear}-${nextMonth}-01T00:00:00+02:00`;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('status, patients!inner(id)')
+    .gte('starts_at', startAt)
+    .lt('starts_at', endAt);
+
+  if (error) {
+    console.error('Failed to fetch monthly appointment statuses:', error.message);
+    throw new Error('Failed to fetch monthly appointment statuses.');
+  }
+
+  const counts: Record<AppointmentStatus, number> = {
+    booked: 0,
+    done: 0,
+    no_show: 0,
+  };
+
+  for (const appointment of data ?? []) {
+    const status: unknown = appointment.status;
+    if (!isAppointmentStatus(status)) {
+      throw new Error(`Unexpected appointment status: ${String(status)}`);
+    }
+    counts[status] += 1;
+  }
+
+  return {
+    monthLabel: new Intl.DateTimeFormat('en-ZA', {
+      timeZone: 'Africa/Johannesburg',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(startAt)),
+    total: Object.values(counts).reduce((sum, count) => sum + count, 0),
+    statuses: (Object.entries(counts) as [AppointmentStatus, number][]).map(
+      ([status, count]) => ({ status, count }),
+    ),
+  };
 }
 
 export async function fetchPatientOptions(): Promise<PatientOption[]> {
