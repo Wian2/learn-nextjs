@@ -10,7 +10,7 @@ export default async function RevenueChart() {
   return (
     <div className="w-full md:col-span-4">
       <h2 className={`${lusitana.className} mb-4 text-xl md:text-2xl`}>
-        Patient Registrations
+        Is the practice growing?
       </h2>
 
       <div className="rounded-xl bg-gray-50 p-4">
@@ -21,9 +21,13 @@ export default async function RevenueChart() {
         <div className="flex items-center pb-2 pt-6">
           <CalendarIcon className="h-5 w-5 text-gray-500" />
           <h3 className="ml-2 text-sm text-gray-500">
-            New patients per month — last 6 months
+            New patients per month (count) — last 6 months
           </h3>
         </div>
+        <p className="text-sm text-gray-600">
+          The clinic owner can use this trend to decide whether to open a
+          second consulting day.
+        </p>
       </div>
     </div>
   );

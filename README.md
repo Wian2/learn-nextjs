@@ -10,6 +10,10 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
 - **Database view:** `public.patients_per_month`
 - **View columns:** `month_start`, `label`, `new_patients`
 - **Security:** The view uses `security_invoker = true` so queries respect the signed-in user's access policies on the underlying `patients` table.
+- **Axes:** Month and new patients (count); the bar-chart y-axis starts at zero.
+- **Empty state:** Explains when no registration data is available.
+- **Decision context:** The clinic owner uses the trend to decide whether to open a second consulting day.
+- **View SQL:** [`supabase/patients_per_month.sql`](./supabase/patients_per_month.sql)
 
 ### Data preparation
 
