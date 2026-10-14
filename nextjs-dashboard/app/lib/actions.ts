@@ -360,15 +360,31 @@ export async function updatePatient(
 
 
 const AppointmentSchema = z.object({
-  patient_id: z
-    .string({ required_error: 'Select a patient.' })
-    .uuid('Select a valid patient.'),
-  starts_at: z
-    .string({ required_error: 'Enter an appointment date and time.' })
-    .regex(
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/,
-      'Enter a valid appointment date and time.',
-    ),
+  patient_id: z.preprocess(
+    (value) => (value === null ? undefined : value),
+    z
+      .string({ required_error: 'Select a patient.' })
+      .min(1, 'Select a patient.')
+      .refine(
+        (value) =>
+          value.length === 0 ||
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            value,
+          ),
+        'Select a valid patient.',
+      ),
+  ),
+  starts_at: z.preprocess(
+    (value) => (value === null ? undefined : value),
+    z
+      .string({ required_error: 'Enter an appointment date and time.' })
+      .min(1, 'Enter an appointment date and time.')
+      .refine(
+        (value) =>
+          value.length === 0 || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value),
+        'Enter a valid appointment date and time.',
+      ),
+  ),
   status: z.enum(['booked', 'done', 'no_show'], {
     required_error: 'Select an appointment status.',
   }),
