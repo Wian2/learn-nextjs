@@ -45,9 +45,10 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
 
 ### RLS smoke test
 
-- Production, 14 Oct 2026: checked the dashboard as both test users. User one
-  saw 32 patients and 2 appointments; user two saw 1 patient and 1 appointment.
-  The separate counts are consistent with the clinic-membership RLS policies.
+- Production, 14 Oct 2026: both users saw only the appointments permitted by
+  their clinic membership. User two received a 404 when opening a user-one
+  appointment's edit URL.
+- User two successfully created, edited, and deleted a test appointment.
 
 ### Data preparation
 
