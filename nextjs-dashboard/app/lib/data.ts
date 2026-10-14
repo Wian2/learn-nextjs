@@ -411,33 +411,17 @@ export async function fetchMonthlyAppointmentStatuses(): Promise<{
   total: number;
   statuses: MonthlyAppointmentStatusCount[];
 }> {
-  const now = new Date();
-  const monthParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Johannesburg',
-    year: 'numeric',
-    month: '2-digit',
-  }).formatToParts(now);
-  const parts = Object.fromEntries(
-    monthParts.map(({ type, value }) => [type, value]),
-  );
-  const year = Number(parts.year);
-  const month = Number(parts.month);
-  const nextMonthDate = new Date(Date.UTC(year, month, 1));
-  const nextYear = nextMonthDate.getUTCFullYear();
-  const nextMonth = String(nextMonthDate.getUTCMonth() + 1).padStart(2, '0');
-  const startAt = `${year}-${String(month).padStart(2, '0')}-01T00:00:00+02:00`;
-  const endAt = `${nextYear}-${nextMonth}-01T00:00:00+02:00`;
-
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('appointments')
-    .select('status, patients!inner(id)')
-    .gte('starts_at', startAt)
-    .lt('starts_at', endAt);
+    .from('appointments_per_status_this_month')
+    .select('month_label, status, appointment_count');
 
   if (error) {
     console.error('Failed to fetch monthly appointment statuses:', error.message);
     throw new Error('Failed to fetch monthly appointment statuses.');
+  }
+  if (!data || data.length !== 3) {
+    throw new Error('Monthly appointment status view returned an unexpected number of rows.');
   }
 
   const counts: Record<AppointmentStatus, number> = {
@@ -445,21 +429,25 @@ export async function fetchMonthlyAppointmentStatuses(): Promise<{
     done: 0,
     no_show: 0,
   };
+  const seenStatuses = new Set<AppointmentStatus>();
 
-  for (const appointment of data ?? []) {
-    const status: unknown = appointment.status;
+  for (const row of data ?? []) {
+    const status: unknown = row.status;
     if (!isAppointmentStatus(status)) {
       throw new Error(`Unexpected appointment status: ${String(status)}`);
     }
-    counts[status] += 1;
+    if (seenStatuses.has(status)) {
+      throw new Error(`Duplicate appointment status in monthly view: ${status}`);
+    }
+    seenStatuses.add(status);
+    counts[status] = row.appointment_count;
+  }
+  if (seenStatuses.size !== 3) {
+    throw new Error('Monthly appointment status view did not return every status.');
   }
 
   return {
-    monthLabel: new Intl.DateTimeFormat('en-ZA', {
-      timeZone: 'Africa/Johannesburg',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(startAt)),
+    monthLabel: data[0].month_label,
     total: Object.values(counts).reduce((sum, count) => sum + count, 0),
     statuses: (Object.entries(counts) as [AppointmentStatus, number][]).map(
       ([status, count]) => ({ status, count }),

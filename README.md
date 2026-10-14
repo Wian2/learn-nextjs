@@ -20,9 +20,13 @@ A clinic dashboard built with Next.js and Supabase to help clinic staff manage p
 - **Question:** What share of this month&apos;s appointments are no-shows?
 - **Who acts:** The clinic owner decides whether reminder messages may be needed.
 - **Chart shape:** Donut, with booked, completed, and no-show statuses.
-- **Rows:** Appointment status and count, scoped by the signed-in user&apos;s RLS.
+- **Database view:** `public.appointments_per_status_this_month`
+- **View columns:** `month_start`, `month_label`, `status`, `appointment_count`
+- **Security:** The view uses `security_invoker = true` so queries respect the signed-in user's access policies on the underlying `appointments` table.
 - **Window:** Current calendar month in `Africa/Johannesburg`.
+- **Rows:** One grouped row for each status, including statuses with zero appointments.
 - **Empty state:** Explains when there are no appointments this month.
+- **View SQL:** [`supabase/appointments_per_status_this_month.sql`](./supabase/appointments_per_status_this_month.sql)
 
 ## Appointments
 
